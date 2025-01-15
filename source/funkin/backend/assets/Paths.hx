@@ -200,6 +200,9 @@ class Paths
 		return tempFramesCache[key] = loadFrames(assetsPath ? key : Paths.image(key, library, true));
 	}
 
+	inline static public function svg(key:String, ?library:String)
+		return Assets.getText(getPath('images/$key.svg', library));
+
 
 	/**
 	 * Loads frames from a specific image path. Supports Sparrow Atlases, Packer Atlases, and multiple spritesheets.
