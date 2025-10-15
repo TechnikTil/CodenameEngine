@@ -5,6 +5,7 @@ import lime.app.Application;
 import openfl.Lib;
 import haxe.Serializer;
 import haxe.Unserializer;
+import haxe.ds.ObjectMap;
 
 /**
  * Class used for saves WITHOUT going through the struggle of type checks
@@ -49,21 +50,34 @@ class FunkinSave {
 		__load();
 		if (save.data.highscores != null) {
 			var temp;
-			for (entryData in Reflect.fields(save.data.highscores))
-				if ((temp = __getHighscoreEntry(entryData)) != null && Reflect.field(save.data.highscores, entryData) != null)
-					highscores.set(temp, Reflect.field(save.data.highscores, entryData));
+
+			var fields:ObjectMap<Dynamic, SongScore> = new ObjectMap<Dynamic, SongScore>();
+			if(Std.isOfType(save.data.highscores, ObjectMap)) {
+				fields = save.data.highscores;
+			}
+			else if(Reflect.isObject(save.data.highscores)) {
+				for (entryData in Reflect.fields(save.data.highscores))
+					fields.set(entryData, Reflect.field(save.data.highscores, entryData));
+			}
+
+			for (entryData=>score in fields)
+				if ((temp = __getHighscoreEntry(entryData)) != null && score != null)
+					highscores.set(temp, score);
 		}
 	}
 
 	public static function flush() {
-		if (save.data.highscores == null) save.data.highscores = {};
-		for (entry => score in highscores) Reflect.setField(save.data.highscores, __formatHighscoreEntry(entry), score);
+		if(!Std.isOfType(save.data.highscores, ObjectMap))
+			save.data.highscores = new ObjectMap<Dynamic, SongScore>();
+		for (entry => score in highscores) save.data.highscores.set(__formatHighscoreEntry(entry), score);
 		__flush();
 	}
 
-	static function __getHighscoreEntry(data:String):HighscoreEntry {
+	static function __getHighscoreEntry(d:Dynamic):HighscoreEntry {
 		try {
-			var d = Unserializer.run(data);
+			if(d is String)
+				d = Unserializer.run(d);
+
 			if (d.song is String)
 				return HSongEntry(d.song, d.diff, d.variation, d.changes);
 			else if (d.week is String)
@@ -73,10 +87,10 @@ class FunkinSave {
 		return null;
 	}
 
-	static function __formatHighscoreEntry(entry:HighscoreEntry):String {
+	static function __formatHighscoreEntry(entry:HighscoreEntry):Dynamic {
 		switch (entry) {
 			case HWeekEntry(weekName, difficulty):
-				return Serializer.run({week: weekName, diff: difficulty});
+				return {week: weekName, diff: difficulty};
 			case HSongEntry(songName, difficulty, variation, changes):
 				var d:Dynamic = {
 					song: songName,
@@ -84,7 +98,7 @@ class FunkinSave {
 					changes: changes
 				};
 				if (variation != null && variation != '') d.variation = variation;
-				return Serializer.run(d);
+				return d;
 		}
 		return '';
 	}
